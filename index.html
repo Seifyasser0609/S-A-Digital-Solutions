@@ -37,6 +37,12 @@
   </script>
 
   <style>
+    @property --ea { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+.elec { position:relative; border-radius:28px; padding:4px; background:transparent; }
+.elec::before { content:''; position:absolute; inset:-3px; border-radius:30px; background:conic-gradient(from var(--ea),#1f6fff,#00d4ff,#a855f7,#00d4ff,#1f6fff); animation:eSpin 3s linear infinite; z-index:0; }
+.elec::after  { content:''; position:absolute; inset:-8px; border-radius:34px; background:conic-gradient(from var(--ea),#1f6fff,#00d4ff,#a855f7,#00d4ff,#1f6fff); animation:eSpin 3s linear infinite; filter:blur(16px); opacity:.45; z-index:0; }
+@keyframes eSpin { to { --ea:360deg; } }
+.elec-in { position:relative; z-index:1; border-radius:24px; overflow:hidden; }
     /* ===== LIGHT MODE — COMPLETE CLEAN VERSION ===== */
     body.light {
       background: #f0f4fa !important;
@@ -594,13 +600,15 @@
         <!-- image card -->
         <div class="reveal">
           <div class="relative w-full max-w-[420px] mx-auto">
-            <div class="rounded-3xl overflow-hidden border-4 border-accent/60 shadow-soft aspect-[3/4] bg-white">
-              <img src="sa talk.png" alt="S&A" class="w-full h-full object-contain" />
-            </div>
+           <div class="elec">
+  <div class="elec-in shadow-soft aspect-[3/4] bg-white">
+    <img src="sa talk.png" alt="S&A" class="w-full h-full object-contain" />
+  </div>
+</div>
 
             <!-- exp badge -->
-            <div class="absolute -bottom-6 right-6 bg-accent text-white rounded-2xl px-6 py-4 shadow-glow">
-              <div class="text-3xl font-extrabold leading-none">1</div>
+            <div class="absolute -bottom-6 right-6 bg-accent text-white rounded-2xl px-6 py-4 shadow-glow" style="z-index:3;">
+              <div class="text-3xl font-extrabold leading-none">1+</div>
               <div class="text-xs font-semibold opacity-95">Year Experience</div>
             </div>
           </div>
@@ -1065,11 +1073,15 @@
           </button>
         </div>
 
-        <!-- image viewer -->
+        <!-- image/iframe viewer -->
         <div class="p-5 sm:p-6">
           <div class="relative">
             <div id="modal-img-wrapper">
-              <img id="modalImg" src="" alt="Project image" draggable="false" />
+              <img id="modalImg" src="" alt="Project image" draggable="false" class="w-full object-cover rounded-xl" />
+            </div>
+            <div id="modal-iframe-wrapper" class="hidden">
+              <iframe id="modalIframe" src="" class="w-full aspect-[16/9] rounded-xl border-none"
+                allowfullscreen></iframe>
             </div>
 
             <!-- watermark -->
@@ -1080,14 +1092,16 @@
             </div>
 
             <!-- controls -->
-            <button id="prevBtn"
-              class="absolute left-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-black/50 border border-white/10 hover:bg-accent/80 hover:border-accent transition-all grid place-items-center text-xl font-bold shadow-lg backdrop-blur-sm">
-              ‹
-            </button>
-            <button id="nextBtn"
-              class="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-black/50 border border-white/10 hover:bg-accent/80 hover:border-accent transition-all grid place-items-center text-xl font-bold shadow-lg backdrop-blur-sm">
-              ›
-            </button>
+            <div id="modal-controls">
+              <button id="prevBtn"
+                class="absolute left-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-black/50 border border-white/10 hover:bg-accent/80 hover:border-accent transition-all grid place-items-center text-xl font-bold shadow-lg backdrop-blur-sm">
+                ‹
+              </button>
+              <button id="nextBtn"
+                class="absolute right-3 top-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-black/50 border border-white/10 hover:bg-accent/80 hover:border-accent transition-all grid place-items-center text-xl font-bold shadow-lg backdrop-blur-sm">
+                ›
+              </button>
+            </div>
           </div>
 
           <!-- thumbnails -->
@@ -1114,9 +1128,31 @@
     </div>
   </div>
   <script>
-    // --- basic protection (light) ---
+    // --- comprehensive protection ---
     document.addEventListener("contextmenu", (e) => e.preventDefault());
     document.addEventListener("dragstart", (e) => e.preventDefault());
+    document.addEventListener("keydown", (e) => {
+      // F12
+      if (e.key === "F12") {
+        e.preventDefault();
+      }
+      // Ctrl+Shift+I (DevTools)
+      if (e.ctrlKey && e.shiftKey && e.key === "I") {
+        e.preventDefault();
+      }
+      // Ctrl+Shift+J (Console)
+      if (e.ctrlKey && e.shiftKey && e.key === "J") {
+        e.preventDefault();
+      }
+      // Ctrl+U (View Source)
+      if (e.ctrlKey && e.key === "u") {
+        e.preventDefault();
+      }
+      // Ctrl+Shift+C (Inspect Element)
+      if (e.ctrlKey && e.shiftKey && e.key === "C") {
+        e.preventDefault();
+      }
+    });
 
     // --- modal logic ---
     const modal = document.getElementById("projectModal");
@@ -1124,7 +1160,11 @@
     const modalClose = document.getElementById("modalClose");
     const modalTitle = document.getElementById("modalTitle");
     const modalDesc = document.getElementById("modalDesc");
+    const modalImgWrapper = document.getElementById("modal-img-wrapper");
+    const modalIframeWrapper = document.getElementById("modal-iframe-wrapper");
     const modalImg = document.getElementById("modalImg");
+    const modalIframe = document.getElementById("modalIframe");
+    const modalControls = document.getElementById("modal-controls");
     const thumbs = document.getElementById("thumbs");
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
@@ -1143,11 +1183,31 @@
 
       modalTitle.textContent = title;
       modalDesc.textContent = desc || "";
-      modalImg.src = currentImages[0] || "";
 
-      // links
-      if (live) { liveLink.href = live; liveLink.classList.remove("hidden"); }
-      else liveLink.classList.add("hidden");
+      // Check if we have a live URL to embed as iframe
+      if (live) {
+        // Show iframe, hide images and controls
+        modalImgWrapper.classList.add("hidden");
+        modalControls.classList.add("hidden");
+        thumbs.classList.add("hidden");
+
+        modalIframeWrapper.classList.remove("hidden");
+        modalIframe.src = live;
+
+        liveLink.href = live;
+        liveLink.classList.remove("hidden");
+      } else {
+        // Show images and controls, hide iframe
+        modalIframeWrapper.classList.add("hidden");
+        modalIframe.src = "";
+
+        modalImgWrapper.classList.remove("hidden");
+        modalControls.classList.remove("hidden");
+        thumbs.classList.remove("hidden");
+
+        modalImg.src = currentImages[0] || "";
+        liveLink.classList.add("hidden");
+      }
 
       if (repo) { repoLink.href = repo; repoLink.classList.remove("hidden"); }
       else repoLink.classList.add("hidden");
@@ -1174,6 +1234,7 @@
     function closeModal() {
       modal.classList.add("hidden");
       document.body.style.overflow = "";
+      modalIframe.src = ""; // Stop iframe playback/loading when closed
     }
 
     let isAnimating = false;
